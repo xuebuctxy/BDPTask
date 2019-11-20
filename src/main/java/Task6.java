@@ -29,7 +29,7 @@ public class Task6 {
         SparkSession spark = SparkSession
                 .builder()
                 .appName("Java Spark SQL data sources example")
-                .master("local")
+                .master("local[*]")
                 .getOrCreate();
 
         Configuration conf = HBaseConfiguration.create();
@@ -78,11 +78,10 @@ public class Task6 {
             Dataset<Row> orderDs = spark.createDataFrame(orderRdd, Order.class);
             orderDs.createOrReplaceTempView("t_order");
 
-            Dataset<Row> rs = spark.sql("select concat(t_user.uid,'-',buy_time,'-',row_number() over(partition by t_order.uid order by buy_time)) as rowkey," +
-                    "t_user.uid, t_user.age, t_user.sex, t_user.active_date, t_user.limit, " +
+            Dataset<Row> rs = spark.sql("select t_user.uid, t_user.age, t_user.sex, t_user.active_date, t_user.limit, " +
                     "t_order.buy_time, t_order.price, t_order.qty, t_order.cate_id, t_order.discount " +
                     "from t_user join t_order on t_user.uid=t_order.uid " +
-                    "order by t_user.uid,t_order.buy_time limit 10");
+                    "order by t_user.uid,t_order.buy_time");
 
             rs.foreachPartition(p->{
                 Configuration hbaseconf = HBaseConfiguration.create();
@@ -91,18 +90,27 @@ public class Task6 {
                 hbaseconf.set("zookeeper.znode.parent", "/hbase");
                 Connection connection = ConnectionFactory.createConnection(hbaseconf);
                 //retrieve a handler to the target table
-                Table table = connection.getTable(TableName.valueOf("user_order"));
+                BufferedMutator bufferedMutator = connection.getBufferedMutator(TableName.valueOf("user_order"));
                 while(p.hasNext()){
                     Row row = p.next();
-                    Put put = new Put(Bytes.toBytes((String) row.get(0)));
-                    put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("uid"), Bytes.toBytes((String)row.get(1)));
-                    put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("age"), Bytes.toBytes((String)row.get(2)));
-                    put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("sex"), Bytes.toBytes((String)row.get(3)));
-//                    put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes(TableInformation.QUALIFIER_NAME_2_1), Bytes.toBytes(0));
-//                    put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes(TableInformation.QUALIFIER_NAME_2_2), Bytes.toBytes(0));
-                    //send the data
-                    table.put(put);
+                    for(int i=0;i<1000;i++){
+                        String rowkey = (String) row.get(0)+"-"+ (String)row.get(5)+ i;
+                        Put put = new Put(Bytes.toBytes(rowkey));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("uid"), Bytes.toBytes((String)row.get(0)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("age"), Bytes.toBytes((String)row.get(1)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("sex"), Bytes.toBytes((String)row.get(2)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("active_date"), Bytes.toBytes((String)row.get(3)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("limit"), Bytes.toBytes((String)row.get(4)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("buy_time"), Bytes.toBytes((String)row.get(5)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("price"), Bytes.toBytes((String)row.get(6)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("qty"), Bytes.toBytes((String)row.get(7)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("cate_id"), Bytes.toBytes((String)row.get(8)));
+                        put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("discount"), Bytes.toBytes((String)row.get(9)));
+
+                        bufferedMutator.mutate(put);
+                    }
                 }
+                bufferedMutator.close();
                 connection.close();
             });
             spark.stop();
