@@ -125,7 +125,7 @@ public class Task6 {
                 @Override
                 public Iterator<Tuple2<ImmutableBytesWritable, KeyValue>> call(Tuple2<Row, Long > tuple2) throws Exception {
                     Row row = tuple2._1;
-                    String rowkey = (String) row.get(0)+"-"+(String) row.get(5)+"-"+String.format("%10d", tuple2._2);
+                    String rowkey = (String) row.get(0)+"-"+(String) row.get(5)+"-"+String.format("%09d", tuple2._2);
                     Tuple2<ImmutableBytesWritable, KeyValue>[] cells = new Tuple2[10];
                     KeyValue keyValue3 = new KeyValue(Bytes.toBytes(rowkey), Bytes.toBytes("cf1"), Bytes.toBytes("active_date"), Bytes.toBytes((String)row.get(3)));
                     cells[0] = new Tuple2<ImmutableBytesWritable, KeyValue>(new ImmutableBytesWritable(Bytes.toBytes(rowkey)), keyValue3);
