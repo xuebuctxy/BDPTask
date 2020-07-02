@@ -14,7 +14,7 @@
         <spark.version>2.1.0</spark.version>
         <hbase.version>1.2.4</hbase.version>
         <scala.binary.version>2.11</scala.binary.version>
-        <mysql.version>5.1.47</mysql.version>
+        <mysql.version>8.0.16</mysql.version>
         <fastjson.version>1.2.14</fastjson.version>
     </properties>
     <dependencies>
